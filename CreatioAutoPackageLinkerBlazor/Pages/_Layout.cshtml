@@ -1,0 +1,53 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@namespace CreatioAutoPackageLinkerBlazor.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <base href="~/"/>
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css"/>
+    <link href="css/site.css" rel="stylesheet"/>
+    <link href="CreatioAutoPackageLinkerBlazor.styles.css" rel="stylesheet"/>
+    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered"/>
+</head>
+<body>
+@RenderBody()
+
+<div id="blazor-error-ui">
+    <environment include="Staging,Production">
+        An error has occurred. This application may no longer respond until reloaded.
+    </environment>
+    <environment include="Development">
+        An unhandled exception has occurred. See browser dev tools for details.
+    </environment>
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+<script src="_framework/blazor.server.js"></script>
+<script src="_content/Blazorise/breakpoint.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/button.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/closable.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/colorPicker.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/datePicker.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/dragDrop.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/dropdown.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/fileEdit.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/filePicker.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/inputMask.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/io.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/memoEdit.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/numericPicker.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/observer.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/popper.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/table.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/textEdit.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/theme.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/timePicker.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/tooltip.js?v=1.2.2.0" type="module"></script>
+<script src="_content/Blazorise/utilities.js?v=1.2.2.0" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+﻿@page "/"
+@using System.Linq
+@using CreatioAutoPackageLinkerBlazor.Data.DbClass
+@using CreatioAutoPackageLinkerBlazor.Data.DbClass.Repository
+@using CreatioAutoPackageLinkerBlazor.Data.Rest
+@using CreatioAutoPackageLinkerBlazor.Services
+@using static Data.ToRootClass;
+@inject ICreatioService CreatioRest
+@inject IDbRepository DbRepository
+@inject LinkerService LinkerService
+@inject SignalRService SignalRService
+@using Hangfire;
+@using Microsoft.AspNetCore.SignalR
+@inject IBackgroundJobClient BackgroundJobClient
+
+<PageTitle>Index</PageTitle>
+
+<div class="row mt-3">
+    <button type="button" class="btn btn-primary mt-3 col" @onclick="@SaveProject" >Сохранить настройки проекта</button>
+</div>
+<labelrow class="row mt-3">
+    Выберите проект:
+    @if (Projects != null)
+    {
+        <div class="row mt-1">
+            <select class="form-select" @onchange="ChangeProject">
+                <option value="@Guid.Empty" selected="selected">Новый проект</option>
+                @if (Projects.Any())
+                {
+                    foreach (var project in Projects.Where(x => x.RecordInactive.Equals(false)))
+                    {
+                        <option value="@project.Id">@project.Name</option>
+                    }
+                }
+            </select>
+        </div>
+    }
+</labelrow>
+<labelrow class="row mt-3">
+    Название проекта:
+    <div class="row mt-1">
+        <input type="text" class="form-control" placeholder="Название проекта" @bind="_projectName"/>
+    </div>
+</labelrow>
+<labelrow class="row mt-3">
+    Данные для подключения к сайту:
+    <div class="row mt-1">
+        <input type="text" class="form-control" placeholder="Адресс сайта" @bind="Url"/>
+    </div>
+    <div class="row mt-3">
+        <input type="text" class="form-control" placeholder="Логин" @bind="Login"/>
+    </div>
+    <div class="row mt-3">
+        <input type="password" class="form-control" placeholder="Пароль" @bind="Password"/>
+    </div>
+</labelrow>
+
+<label class="row mt-3">
+    Выберите продукт:
+    <div class="row mt-1">
+        <select class="form-select" @onchange="ChangeProductType" value="@ProductTypeId">
+            <option value="@Guid.Empty" selected="selected" disabled="disabled">--Выберите продукт--</option>
+            @if (ProductTypeList != null)
+            {
+                foreach (var productType in ProductTypeList)
+                {
+                    <option value=@productType.Id>@productType.Name</option>
+                }
+            }
+            @*<option value="2d07ceeb-5855-496c-9d85-2b978b950aa6">Studio</option>
+                <option value="SalesTeam">Sales team</option>
+                <option value="SalesCommerce">Sales commerce</option>
+                <option value="SalesEnterprise">Sales enterprise</option>
+                <option value="Marketing">Marketing</option>
+                <option value="CustomerCenter">Customer center</option>
+                <option value="ServiceEnterprise">Service enterprise</option>
+                <option value="SalesTeam_Marketing">Sales team, Marketing</option>
+                <option value="SalesTeam_Marketing_CustomerCenter">Sales team, Marketing, Customer center</option>
+                <option value="SalesCommerce_Marketing_CustomerCenter">Sales commerce, Marketing, Customer center</option>
+                <option value="cc7c79c1-e2af-472c-8301-b248093b3273">Sales enterprise, Marketing, Customer center</option>
+                <option value="SalesEnterprise_Marketing_ServiceEnterprise">Sales enterprise, Marketing, Service enterprise</option>
+                <option value="BankCustomerJourney">Bank customer journey</option>
+                <option value="BankSales_BankCustomerJourney_Lending_Marketing">Bank sales, Bank customer journey, Lending, Marketing</option>
+                <option value="BankSales">Bank sales</option>
+                <option value="Lending">Lending</option>*@
+        </select>
+    </div>
+</label>
+
+@if (SelectPackages.Any())
+{
+    <labelrow class="row mt-3">
+        Root пакет: 
+        <div class="row mt-1">
+            <select class="form-select" @onchange="ChangeRootPackage" value="@_selectRootPackage">
+                <option value="@Guid.Empty" selected="selected" disabled="disabled">--Выберите пакет--</option>
+                @if (SelectPackages.Any())
+                {
+                    foreach (var selectPackage in SelectPackages.Where(x => x.CanBeRoot).OrderBy(x => x.Name))
+                    {
+                        <option value="@selectPackage.Id">@selectPackage.Name</option>
+                    }
+                }
+            </select>
+        </div>
+    </labelrow>
+
+    <div class="row mt-3">
+        <table class="table table-height">
+            <thead>
+            <tr>
+                <th>Название пакета</th>
+                <th>Модуль</th>
+                <th>Root пакет</th>
+                <th>Может быть Root пакетом</th>
+                <th>Связи были изменины</th>
+                <th>Ранг</th>
+                <th>Издатель</th>
+                <th>Отправлено</th>
+                <th>Выполнено</th>
+                <th>Ошибки</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var package in SelectPackages.OrderBy(x => x.Rang).ThenBy(x => !x.Completed).ThenBy(x => !x.Successfully).ThenBy(x => x.Name))
+            {
+                <tr>
+                    <td>@package.Name</td>
+                    <td class="col-checkbox chkColumn quarter">
+                       <input class="form-check-input" type="checkbox" checked="@package.IsModule" @onchange="eventArgs => { ChangeCheckboxSingle(eventArgs, package.Id); }">
+                    </td>
+                    <td><input class="form-check-input" type="checkbox" @bind="@package.IsRootPackage" disabled></td>
+                    <td><input class="form-check-input" type="checkbox" @bind="@package.CanBeRoot" disabled></td>
+                    <td><input class="form-check-input" type="checkbox" checked="@(package.PackageHierarchyDependOnPackages.Any(x => x.IsModified) && package.IsModule == false)" disabled></td>
+                    @if (package.Rang >= 0)
+                    {
+                        <td>@package.Rang</td>
+                    }
+                    else
+                    {
+                        <td>Нет</td>
+                    }
+                    <td>@package.Maintainer</td>
+                    <td><input class="form-check-input" type="checkbox" @bind="@package.Completed" disabled></td>
+                    <td><input class="form-check-input" type="checkbox" @bind="@package.Successfully" disabled></td>
+                    <td>@package.ErrorInfo</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="row mt-3">
+    <button type="button" class="btn btn-primary m-3 col" @onclick="@GetPackages" >1. Получить пакеты</button>
+    <button type="button" class="btn btn-warning m-3 col" @onclick="@AutoLink" >2. Создать новые зависимости</button>
+    @*<button type="button" class="btn btn-warning m-3 col" @onclick="@AutoLink" disabled="@EnableAutoLinkButton">2. Создать новые зависимости</button>*@
+    <button type="button" class="btn btn-success m-3 col" @onclick="@ApplyStructureChanges" >3. Применить изменения</button>
+    @*<button type="button" class="btn btn-success m-3 col" @onclick="@ApplyStructureChanges" disabled="@EnableApplyStructureChangesButton">3. Применить изменения</button>*@
+</div>
+<div class="row">
+    <button type="button" class="btn btn-danger m-3 col" @onclick="StopTasks">Остановить</button>
+</div>
+
+
+@code {
+    private List<Package> SelectPackages { get; set; } = new();
+    Guid ProductTypeId { get; set; }
+    private bool EnableAutoLinkButton { get; set; } = true;
+    private bool EnableApplyStructureChangesButton { get; set; } = true;
+    private List<ProductForType>? ProductTypeList { get; set; }
+    private List<Project>? Projects { get; set; }
+    private Guid _selectedProject;
+    private string? _projectName;
+    private Guid _selectRootPackage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Projects = await DbRepository.GetAllActiveProjectsAsync();
+        ProductTypeList = await DbRepository.GetAllActiveProductsForTypeAsync();
+        SignalRService.OnMessageReceived += SignalRService_OnMessageReceived;
+    }
+    
+    private void SignalRService_OnMessageReceived(object? sender, string message)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SendPublicMessage()
+    {
+        await SignalRService.SendPublicMessageAsync("Hello, everyone!");
+    }
+
+    private async Task SendPrivateMessage()
+    {
+        string recipientConnectionId = "some_connection_id";
+        await SignalRService.SendPrivateMessageAsync(recipientConnectionId, "Hello, private user!");
+    }
+    
+    private void UpdatePackages(object? sender, EventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+    
+    public void Dispose()
+    {
+        SignalRService.OnMessageReceived -= SignalRService_OnMessageReceived;
+    }
+
+    protected virtual async Task GetPackages()
+    {
+        var getPackagesService = new GetPackagesService(DbRepository, CreatioRest);
+        SelectPackages = await getPackagesService.GetPackages(Url, Login, Password, _selectedProject);
+        EnableAutoLinkButton = !(SelectPackages.Any() && ProductTypeId != Guid.Empty && _selectRootPackage != Guid.Empty);
+    }
+
+    private void AutoLink()
+    {
+        var autoLinkService = new AutoLinkService(DbRepository, CreatioRest);
+        BackgroundJobClient.Enqueue(() => autoLinkService.BackgroundAutoLink(_selectedProject, ProductTypeId));
+        //await autoLinkService.AutoLink(_selectedProject, ProductTypeId);
+        EnableApplyStructureChangesButton = true;
+        StateHasChanged();
+    }
+
+    private void ApplyStructureChanges()
+    {
+        var applyStructureChangesService = new ApplyStructureChangesService(DbRepository, CreatioRest, SignalRService);
+        BackgroundJobClient.Enqueue(() => applyStructureChangesService.BackgroundApplyStructureChanges(_selectedProject, Url, Login, Password));
+        //await applyStructureChangesService.ApplyStructureChanges(_selectedProject, Url, Login, Password);
+        StateHasChanged();
+    }
+    
+    private void StopTasks()
+    {
+        LinkerService.Stop();
+    }
+    
+    protected virtual async Task ChangeRootPackage(ChangeEventArgs arg)
+    {
+        if (!SelectPackages.Any()) return;
+        if (!Guid.TryParse(arg.Value?.ToString(), out var outItem) || outItem == Guid.Empty) return;
+        var packages = await DbRepository.GetPackagesAllNotReadOnlyByProject(_selectedProject);
+        await DbRepository.CreateOrUpdatePackageRangeAsync(packages.Select(x =>
+        {
+            x.IsRootPackage = x.Id == outItem;
+            return x;
+        }).ToList());
+        EnableAutoLinkButton = !(SelectPackages.Any() && ProductTypeId != Guid.Empty && _selectRootPackage != Guid.Empty);
+        StateHasChanged();
+    }
+
+    private async Task ChangeProject(ChangeEventArgs arg)
+    {
+        if (Guid.TryParse(arg.Value?.ToString(), out var outItem))
+        {
+            _selectedProject = outItem;
+            SelectPackages = new List<Package>();
+            if (outItem != Guid.Empty)
+            {
+                var project = await DbRepository.GetActiveProjectByIdAsync(outItem);
+                if (project != null)
+                {
+                    Login = project.Login;
+                    Password = project.Password;
+                    Url = project.Url;
+                    ProductTypeId = project.ProductForTypeId;
+                    _projectName = project.Name;
+                }
+                SelectPackages = await DbRepository.GetPackagesAllNotReadOnlyByProject(outItem);
+                _selectRootPackage = SelectPackages.Where(x => x.IsRootPackage).Select(x => x.Id).FirstOrDefault();
+            }
+            else
+            {
+                Login = string.Empty;
+                Password = string.Empty;
+                Url = string.Empty;
+                ProductTypeId = Guid.Empty;
+                _projectName = string.Empty;
+                _selectRootPackage = Guid.Empty;
+            }
+        }
+        EnableAutoLinkButton = !(SelectPackages.Any() && ProductTypeId != Guid.Empty && _selectRootPackage != Guid.Empty);
+        StateHasChanged();
+    }
+
+    private void ChangeProductType(ChangeEventArgs arg)
+    {
+        if (!Guid.TryParse(arg.Value?.ToString(), out var outItem) || outItem == Guid.Empty) return;
+        ProductTypeId = outItem;
+        EnableAutoLinkButton = !(SelectPackages.Any() && ProductTypeId != Guid.Empty && _selectRootPackage != Guid.Empty);
+        StateHasChanged();
+    }
+    
+    async void ChangeCheckboxSingle(ChangeEventArgs e ,Guid checkId)
+    {
+
+        var package = await DbRepository.GetPackageById(checkId);
+        if (package != null)
+        {
+            package.IsModule = (bool)e.Value!;
+            DbRepository?.CreateOrUpdatePackageRangeAsync(new List<Package> { package });
+        }
+        StateHasChanged();
+    }
+
+    private async Task SaveProject()
+    {
+        var project = new Project
+        {
+            Id = _selectedProject,
+            RecordInactive = false,
+            Login = Login,
+            Password = Password,
+            Url = Url,
+            ProductForTypeId = ProductTypeId,
+            Name = _projectName
+        };
+        if (await DbRepository.CreateOrUpdateProjectAsync(project))
+        {
+            StateHasChanged();
+        }
+    }
+}
